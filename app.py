@@ -112,8 +112,9 @@ def clear():
     """Clear all pixels on the Unicorn HAT."""
     if UNICORN_AVAILABLE:
         unicorn.off()
+        logger.info("Unicorn HAT turned off")
     else:
-        logger.debug("Simulation: Display cleared")
+        logger.info("Simulation: Display cleared")
 
 def validate_color(color: dict) -> tuple:
     """
