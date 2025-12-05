@@ -162,7 +162,7 @@ def validate_grid(grid: list) -> list:
     
     return validated_grid
 
-@app.route('/health', methods=['GET'])
+@app.route('/health', methods=['GET', 'POST'])
 def health_check():
     """Health check endpoint."""
     return jsonify({
@@ -306,7 +306,7 @@ def set_brightness():
         logger.error(f"Error setting brightness: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
-@app.route('/history', methods=['GET'])
+@app.route('/history', methods=['GET', 'POST'])
 def get_history():
     """
     Get the last 10 submitted grids.
