@@ -6,6 +6,8 @@ Accepts an 8x8 grid of RGB colors and displays them on the HAT.
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import logging
+from datetime import datetime
+from collections import deque
 
 # Try to import unicornhat - will fail on non-Raspberry Pi systems
 try:
@@ -25,6 +27,20 @@ logger = logging.getLogger(__name__)
 # Grid dimensions
 GRID_WIDTH = 8
 GRID_HEIGHT = 8
+
+# Store last 10 grids in memory
+MAX_HISTORY = 10
+grid_history = deque(maxlen=MAX_HISTORY)
+
+def save_grid_to_history(grid: list):
+    """Save a grid to the history with timestamp."""
+    entry = {
+        'id': datetime.now().isoformat(),
+        'grid': grid,
+        'timestamp': datetime.now().isoformat()
+    }
+    grid_history.appendleft(entry)
+    logger.info(f"Grid saved to history. Total entries: {len(grid_history)}")
 
 def init_unicorn():
     """Initialize the Unicorn HAT."""
@@ -135,6 +151,9 @@ def update_grid():
         
         show()
         
+        # Save the original grid data (with dict format) to history
+        save_grid_to_history(data['grid'])
+        
         logger.info("Grid updated successfully")
         return jsonify({'status': 'success', 'message': 'Grid updated'})
     
@@ -229,6 +248,29 @@ def set_brightness():
     
     except Exception as e:
         logger.error(f"Error setting brightness: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/history', methods=['GET'])
+def get_history():
+    """
+    Get the last 10 submitted grids.
+    
+    Returns:
+    {
+        "grids": [
+            {
+                "id": "2024-12-05T10:30:00.000000",
+                "grid": [[{"r": 255, "g": 0, "b": 0}, ...], ...],
+                "timestamp": "2024-12-05T10:30:00.000000"
+            },
+            ...
+        ]
+    }
+    """
+    try:
+        return jsonify({'grids': list(grid_history)})
+    except Exception as e:
+        logger.error(f"Error getting history: {e}")
         return jsonify({'error': 'Internal server error'}), 500
 
 # Initialize Unicorn HAT on startup

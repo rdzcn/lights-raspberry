@@ -42,10 +42,10 @@ sudo apt-get install -y python3-pip python3-venv python3-dev git
 ### Step 3: Install Unicorn HAT Library
 
 ```bash
-curl https://get.pimoroni.com/unicornhat | bash
+sudo pip3 install unicornhat
 ```
 
-Follow the prompts and reboot when asked.
+For more information, see the [official repository](https://github.com/pimoroni/unicorn-hat).
 
 ### Step 4: Clone and Setup the Project
 
@@ -61,11 +61,8 @@ python3 -m venv venv
 # Activate virtual environment
 source venv/bin/activate
 
-# Install Python dependencies
+# Install Python dependencies (includes unicornhat)
 pip install -r requirements.txt
-
-# Install unicornhat in the venv
-pip install unicornhat
 ```
 
 ### Step 5: Test the API
