@@ -32,3 +32,7 @@ dist-ssr
 .env.local
 .env.example
 .vite
+
+__pycache__
+venv/
+*.pyc
