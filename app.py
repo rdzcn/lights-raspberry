@@ -22,7 +22,10 @@ app = Flask(__name__)
 
 # CORS configuration - only allow requests from the production frontend
 ALLOWED_ORIGIN = 'https://lights-ui.vercel.app'
-CORS(app, origins=[ALLOWED_ORIGIN], supports_credentials=True, allow_headers=['Content-Type', 'ngrok-skip-browser-warning'])
+CORS(app, 
+     origins=[ALLOWED_ORIGIN], 
+     allow_headers=['Content-Type', 'ngrok-skip-browser-warning', 'User-Agent'],
+     methods=['GET', 'POST', 'OPTIONS'])
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
