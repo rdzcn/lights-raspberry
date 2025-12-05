@@ -8,6 +8,7 @@ from flask_cors import CORS
 import logging
 from datetime import datetime
 from collections import deque
+import threading
 
 # Try to import unicornhat - will fail on non-Raspberry Pi systems
 try:
@@ -18,7 +19,10 @@ except ImportError:
     print("WARNING: unicornhat module not available. Running in simulation mode.")
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for frontend requests
+
+# CORS configuration - only allow requests from the production frontend
+ALLOWED_ORIGIN = 'https://lights-ui.vercel.app'
+CORS(app, origins=[ALLOWED_ORIGIN])
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -31,6 +35,46 @@ GRID_HEIGHT = 8
 # Store last 10 grids in memory
 MAX_HISTORY = 10
 grid_history = deque(maxlen=MAX_HISTORY)
+
+# Auto-off timer settings
+AUTO_OFF_SECONDS = 10
+auto_off_timer = None
+timer_lock = threading.Lock()
+
+def schedule_auto_off():
+    """Schedule the display to turn off after AUTO_OFF_SECONDS."""
+    global auto_off_timer
+    
+    with timer_lock:
+        # Cancel any existing timer
+        if auto_off_timer is not None:
+            auto_off_timer.cancel()
+        
+        # Schedule new timer
+        auto_off_timer = threading.Timer(AUTO_OFF_SECONDS, auto_off_callback)
+        auto_off_timer.daemon = True
+        auto_off_timer.start()
+        logger.info(f"Auto-off scheduled in {AUTO_OFF_SECONDS} seconds")
+
+def cancel_auto_off():
+    """Cancel the auto-off timer."""
+    global auto_off_timer
+    
+    with timer_lock:
+        if auto_off_timer is not None:
+            auto_off_timer.cancel()
+            auto_off_timer = None
+            logger.info("Auto-off timer cancelled")
+
+def auto_off_callback():
+    """Callback function to turn off the display."""
+    global auto_off_timer
+    
+    with timer_lock:
+        auto_off_timer = None
+    
+    clear()
+    logger.info("Display auto-off triggered")
 
 def save_grid_to_history(grid: list):
     """Save a grid to the history with timestamp."""
@@ -151,6 +195,9 @@ def update_grid():
         
         show()
         
+        # Schedule auto-off after 10 seconds
+        schedule_auto_off()
+        
         # Save the original grid data (with dict format) to history
         save_grid_to_history(data['grid'])
         
@@ -198,6 +245,9 @@ def update_pixel():
         set_pixel(x, y, r, g, b)
         show()
         
+        # Schedule auto-off after 10 seconds
+        schedule_auto_off()
+        
         logger.info(f"Pixel ({x}, {y}) updated to RGB({r}, {g}, {b})")
         return jsonify({'status': 'success', 'message': f'Pixel ({x}, {y}) updated'})
     
@@ -211,6 +261,8 @@ def update_pixel():
 def clear_grid():
     """Clear all pixels (turn off all LEDs)."""
     try:
+        # Cancel any pending auto-off timer
+        cancel_auto_off()
         clear()
         logger.info("Grid cleared")
         return jsonify({'status': 'success', 'message': 'Grid cleared'})
