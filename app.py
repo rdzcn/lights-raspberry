@@ -23,10 +23,13 @@ except ImportError:
 
 app = Flask(__name__)
 
-# CORS configuration - only allow requests from the production frontend
-ALLOWED_ORIGIN = 'https://lights-ui.vercel.app, http://localhost:5173'
+# CORS configuration - allow requests from production frontend and local dev server
+ALLOWED_ORIGINS = [
+    'https://lights-ui.vercel.app',
+    'http://localhost:5173',
+]
 CORS(app, 
-     origins=[ALLOWED_ORIGIN], 
+     origins=ALLOWED_ORIGINS, 
      allow_headers=['Content-Type', 'ngrok-skip-browser-warning', 'User-Agent'],
      methods=['GET', 'POST', 'OPTIONS'])
 
