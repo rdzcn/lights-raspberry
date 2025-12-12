@@ -380,35 +380,47 @@ def generate_grid():
         logger.info(f"Generating grid for word: {word}")
         
         # Call OpenAI to generate the grid
-        prompt = f"""Generate an 8x8 pixel art grid representing "{word}".
+        prompt = f"""Create an 8x8 pixel art icon for "{word}".
 
-Rules:
-- Return ONLY a valid JSON array, no other text
-- The array must have exactly 8 rows
-- Each row must have exactly 8 color objects
-- Each color object must have "r", "g", "b" keys with integer values 0-255
-- Use bold, vibrant colors that will look good on LED lights
-- Create a simple, recognizable representation of the concept
-- Use black (0,0,0) for empty/background pixels
+CRITICAL CONSTRAINTS:
+- Output ONLY a JSON array, no text before or after
+- Exactly 8 rows, each with exactly 8 objects
+- Each object: {{"r":0-255,"g":0-255,"b":0-255}}
 
-Example format:
-[[{{"r":0,"g":0,"b":0}},{{"r":255,"g":0,"b":0}},...],...]
+DESIGN GUIDELINES FOR 8x8 PIXEL ART:
+- 8x8 is VERY small - use the ENTIRE grid, make shapes BIG
+- Center the main shape, fill most of the 8x8 space
+- Use 2-3 colors maximum for clarity
+- Thick lines (2+ pixels wide) read better than thin lines
+- Symmetry helps recognition
+- Black (0,0,0) = off/background
 
-Return the complete 8x8 grid JSON array for "{word}":"""
+EXAMPLES OF GOOD 8x8 COMPOSITIONS:
+- Heart: Fill rows 2-7, widest at row 3-4, pointed bottom at row 7
+- Star: Center it, make points reach edges of grid
+- Sun: Circle in middle (4x4), rays extending to edges
+- Smiley: Large circle filling grid, eyes at row 2-3, smile at row 5-6
+
+For "{word}", think about:
+1. What is the most iconic/recognizable silhouette?
+2. How can I maximize the use of the 8x8 space?
+3. What 2-3 colors will make this pop on LED lights?
+
+Return the 8x8 JSON array for "{word}":"""
 
         response = openai_client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a pixel art generator. You create 8x8 pixel art grids as JSON arrays. Return ONLY valid JSON, no markdown, no explanation."
+                    "content": "You are an expert 8x8 pixel art designer for LED displays. You create bold, recognizable icons that fill the grid effectively. Return ONLY valid JSON arrays, no markdown, no explanation, no text outside the JSON."
                 },
                 {
                     "role": "user",
                     "content": prompt
                 }
             ],
-            temperature=0.7,
+            temperature=0.5,
             max_tokens=2000
         )
         
