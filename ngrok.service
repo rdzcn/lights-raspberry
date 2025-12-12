@@ -1,0 +1,16 @@
+[Unit]
+Description=ngrok tunnel for Unicorn HAT API
+After=network-online.target unicorn_hat.service
+Wants=network-online.target
+Requires=unicorn_hat.service
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/ngrok http 5000 --log=stdout
+Restart=always
+RestartSec=10
+Environment=HOME=/root
+
+[Install]
+WantedBy=multi-user.target

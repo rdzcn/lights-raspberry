@@ -9,6 +9,9 @@ import logging
 from datetime import datetime
 from collections import deque
 import threading
+import os
+import json
+from openai import OpenAI
 
 # Try to import unicornhat - will fail on non-Raspberry Pi systems
 try:
@@ -30,6 +33,14 @@ CORS(app,
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Initialize OpenAI client
+openai_client = None
+if os.environ.get('OPENAI_API_KEY'):
+    openai_client = OpenAI()
+    logger.info("OpenAI client initialized")
+else:
+    logger.warning("OPENAI_API_KEY not set. AI generation will not be available.")
 
 # Grid dimensions
 GRID_WIDTH = 8
@@ -328,6 +339,111 @@ def get_history():
     except Exception as e:
         logger.error(f"Error getting history: {e}")
         return jsonify({'error': 'Internal server error'}), 500
+
+
+@app.route('/generate', methods=['POST'])
+def generate_grid():
+    """
+    Generate an 8x8 pixel art grid from a word using AI.
+    
+    Expected JSON body:
+    {
+        "word": "heart"
+    }
+    
+    Returns:
+    {
+        "grid": [[{"r": 255, "g": 0, "b": 0}, ...], ...],
+        "word": "heart"
+    }
+    """
+    try:
+        if openai_client is None:
+            return jsonify({'error': 'AI generation not available. OPENAI_API_KEY not configured.'}), 503
+        
+        data = request.get_json()
+        
+        if not data or 'word' not in data:
+            return jsonify({'error': 'Request must include "word" field'}), 400
+        
+        word = data['word'].strip()
+        
+        if not word:
+            return jsonify({'error': 'Word cannot be empty'}), 400
+        
+        if len(word) > 50:
+            return jsonify({'error': 'Word must be 50 characters or less'}), 400
+        
+        logger.info(f"Generating grid for word: {word}")
+        
+        # Call OpenAI to generate the grid
+        prompt = f"""Generate an 8x8 pixel art grid representing "{word}".
+
+Rules:
+- Return ONLY a valid JSON array, no other text
+- The array must have exactly 8 rows
+- Each row must have exactly 8 color objects
+- Each color object must have "r", "g", "b" keys with integer values 0-255
+- Use bold, vibrant colors that will look good on LED lights
+- Create a simple, recognizable representation of the concept
+- Use black (0,0,0) for empty/background pixels
+
+Example format:
+[[{{"r":0,"g":0,"b":0}},{{"r":255,"g":0,"b":0}},...],...]
+
+Return the complete 8x8 grid JSON array for "{word}":"""
+
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a pixel art generator. You create 8x8 pixel art grids as JSON arrays. Return ONLY valid JSON, no markdown, no explanation."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.7,
+            max_tokens=2000
+        )
+        
+        # Parse the response
+        ai_response = response.choices[0].message.content.strip()
+        logger.info(f"AI response received: {ai_response[:100]}...")
+        
+        # Clean up the response - remove markdown code blocks if present
+        if ai_response.startswith("```"):
+            # Remove markdown code block
+            lines = ai_response.split('\n')
+            # Remove first line (```json or ```) and last line (```)
+            ai_response = '\n'.join(lines[1:-1] if lines[-1] == '```' else lines[1:])
+        
+        # Parse JSON
+        try:
+            grid = json.loads(ai_response)
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse AI response as JSON: {e}")
+            logger.error(f"Response was: {ai_response}")
+            return jsonify({'error': 'AI generated invalid response. Please try again.'}), 500
+        
+        # Validate the grid structure
+        try:
+            validate_grid(grid)
+        except ValueError as e:
+            logger.error(f"AI generated invalid grid structure: {e}")
+            return jsonify({'error': f'AI generated invalid grid: {e}. Please try again.'}), 500
+        
+        logger.info(f"Successfully generated grid for word: {word}")
+        return jsonify({
+            'grid': grid,
+            'word': word
+        })
+    
+    except Exception as e:
+        logger.error(f"Error generating grid: {e}")
+        return jsonify({'error': 'Failed to generate grid. Please try again.'}), 500
 
 # Initialize Unicorn HAT on startup
 init_unicorn()

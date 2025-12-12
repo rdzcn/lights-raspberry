@@ -36,3 +36,5 @@ dist-ssr
 __pycache__
 venv/
 *.pyc
+
+unicorn_hat.service

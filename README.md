@@ -89,7 +89,7 @@ curl http://<raspberry-pi-ip>:5000/health
 # Copy the service file
 sudo cp unicorn_hat.service /etc/systemd/system/
 
-# If your project is not in /home/pi/lights-raspberry, edit the service file:
+# If your project is not in /home/rdzcn/projects/lights-raspberry, edit the service file:
 sudo nano /etc/systemd/system/unicorn_hat.service
 # Update WorkingDirectory and ExecStart paths
 
@@ -106,7 +106,41 @@ sudo systemctl start unicorn_hat.service
 sudo systemctl status unicorn_hat.service
 ```
 
-### Step 7: Configure Firewall (if enabled)
+### Step 7: Set Up ngrok for Remote Access (Auto-start on boot)
+
+This allows your Raspberry Pi to be accessible from the internet without port forwarding.
+
+```bash
+# 1. Install ngrok
+curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+sudo apt update && sudo apt install ngrok
+
+# 2. Authenticate ngrok (get your token from https://dashboard.ngrok.com/get-started/your-authtoken)
+sudo ngrok config add-authtoken <YOUR_AUTH_TOKEN>
+
+# 3. (Optional) Set up a static domain in ngrok dashboard for a consistent URL
+#    Then update the service file to use: ngrok http 5000 --domain=your-domain.ngrok-free.app
+
+# 4. Copy the ngrok service file
+sudo cp ngrok.service /etc/systemd/system/
+
+# 5. Reload systemd and enable ngrok service
+sudo systemctl daemon-reload
+sudo systemctl enable ngrok.service
+sudo systemctl start ngrok.service
+
+# 6. Check status
+sudo systemctl status ngrok.service
+
+# 7. Get your ngrok URL (look for the "Forwarding" line)
+curl http://localhost:4040/api/tunnels | jq '.tunnels[0].public_url'
+# Or check the ngrok dashboard at https://dashboard.ngrok.com/tunnels
+```
+
+> **Note:** With ngrok's free tier, the URL changes each time ngrok restarts. Consider getting a [static domain](https://dashboard.ngrok.com/cloud-edge/domains) (free with ngrok account) for a consistent URL.
+
+### Step 8: Configure Firewall (if enabled)
 
 ```bash
 # Allow port 5000
